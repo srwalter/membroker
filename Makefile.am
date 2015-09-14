@@ -27,6 +27,7 @@ pkginclude_HEADERS = \
 
 lib_LTLIBRARIES += libmbs.la
 libmbs_la_SOURCES = src/mbserver.c
+libmbs_la_LDFLAGS = -lrt
 
 bin_PROGRAMS += mbserver
 mbserver_SOURCES = \
