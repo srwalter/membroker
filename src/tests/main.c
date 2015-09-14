@@ -20,7 +20,7 @@ do { \
     if (! ( condition) ) { \
       printf ("%s:%d: assertion `%s' failed\n", \
         __func__, __LINE__, #condition); \
-      exit (1);            \
+      assert (0);            \
      } \
    } while(0)
 
@@ -564,8 +564,8 @@ int testNormalRequest()
 int testNormalReserve()
 {
     int rc;
-    TestClient* sink = createTestClient(2, 0, 0);
     TestClient* source = createTestClient(1, 1, 10);
+    TestClient* sink = createTestClient(2, 0, 0);
 
     FAIL_UNLESS(mb_client_query_server(sink->client) == 5);
 
