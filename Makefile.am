@@ -60,11 +60,9 @@ mbctest_SOURCES = \
 mbctest_LDADD = libmembroker.la
 TESTS += mbctest
 
-noinst_PROGRAMS += mbtest
+bin_PROGRAMS += mbtest
 mbtest_SOURCES = src/mbtest.c
 mbtest_LDADD = libmembroker.la
-# This test fails
-#TESTS += mbtest
 
 noinst_PROGRAMS += test_main
 test_main_SOURCES = src/tests/main.c
