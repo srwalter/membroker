@@ -745,6 +745,14 @@ process_solicited_pages(Server* server, Client* client, int shared_pages)
     give_server_pages(server, shared_pages);
 
     process_unsolicited_pages(server);
+
+    /* In the case where the request that this share is servicing has already
+     * been fulfilled by an unsolicited return we will not call
+     * mark_client_responded(). This will cause CLIENT_REQUEST to not be set.
+     * This is a problem when other requests are waiting to send a request to
+     * this client, which causes a hang. To fix this issue we just set
+     * CLIENT_REQUEST unconditionally here so that we can be prevent this. */
+    server->updates |= CLIENT_REQUEST;
 }
 
 static void

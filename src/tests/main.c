@@ -10,6 +10,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <time.h>
 #include <unistd.h>
 
 #define min(a,b) a < b ? a:b
@@ -363,6 +364,40 @@ static void waitUntilServerPostResponse(TestClient* tc, MbCodes response)
     printf("Received client %d response %s\n", mb_client_id(tc->client),
            mb_code_name(response));
     pthread_mutex_unlock(&(tc->mutex));
+}
+
+static int timedWaitUntilServerPostResponse(TestClient* tc, MbCodes response, int seconds)
+{
+    int rc = 0;
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += seconds;
+    pthread_mutex_lock(&(tc->mutex));
+    printf("Waiting on client %d response %s\n", mb_client_id(tc->client),
+           mb_code_name(response));
+    while(tc->postresponse != response)
+    {
+        rc = pthread_cond_timedwait(&(tc->cond), &(tc->mutex), &ts);
+        if(rc != 0)
+        {
+           printf("Client %d failed waiting for %s\n", mb_client_id(tc->client),
+                  mb_code_name(response));
+           break;
+        }
+        else
+        {
+           printf("Saw client %d response %s\n", mb_client_id(tc->client),
+                  mb_code_name(response));
+        }
+    }
+    if(rc == 0)
+    {
+       tc->postresponse = INVALID;
+       printf("Received client %d response %s\n", mb_client_id(tc->client),
+              mb_code_name(response));
+    }
+    pthread_mutex_unlock(&(tc->mutex));
+    return rc;
 }
 
 static void clearServerPreResponse(TestClient* tc)
@@ -1237,6 +1272,43 @@ int testDumpDebug()
     return 0;
 }
 
+/* This test was written to test a specific hang scenario that we encountered
+ * and fixed. The issue was that if a REQUEST/RESERVE was fulfilled by a RETURN
+ * then any pending requests sent to clients would not have an associated
+ * request when the SHARE was sent. In most scenarios this was fine but when
+ * another REQUEST/RESERVE comes in while the client is still handling the
+ * original REQUEST/RESERVE then it would not requeue the client on the pending
+ * request. This would leave us hung until another REQUEST/RESERVE came in from
+ * another client, which might never happen. This issue has been fixed but this
+ * test is left in place to make sure it stays that way */
+int testUnsolicitedFulfill()
+{
+    int rc;
+    TestClient * source = createTestClient(1, 1, 30);
+    TestClient * bidi1 = createTestClient(2, 1, 0);
+    TestClient * bidi2 = createTestClient(3, 1, 0);
+
+    pauseClientOn(source, REQUEST);
+    rc = mb_client_send(bidi1->client, REQUEST, 10);
+    FAIL_UNLESS(rc == 0);
+    flushClient(bidi1);
+    rc = mb_client_return_pages(source->client, 10);
+    FAIL_UNLESS(rc == 0);
+    waitUntilServerPostResponse(bidi1, SHARE);
+
+    rc = mb_client_send(bidi2->client, REQUEST, 30);
+    FAIL_UNLESS(rc == 0);
+    waitUntilServerPostResponse(bidi1, REQUEST);
+
+    resumeClient(source);
+    rc = timedWaitUntilServerPostResponse(bidi2, SHARE, 60);
+    FAIL_UNLESS(rc == 0);
+
+    terminateTestClient(source);
+    terminateTestClient(bidi1);
+    terminateTestClient(bidi2);
+}
+
 static TestLookup testTable[] = {
     { "initAndTerminate", &initAndTerminate, 0},
     { "testNormalRequest", &testNormalRequest, 5 },
@@ -1253,7 +1325,8 @@ static TestLookup testTable[] = {
     { "testMultipleRequests", &testMultipleRequests, 0 },
     { "testClientTermination", &testClientTermination, 0 },
     { "testIoErrors", &testIoErrors, 0 },
-    { "testDumpDebug", &testDumpDebug, 0 }
+    { "testDumpDebug", &testDumpDebug, 0 },
+    { "testUnsolicitedFulfill", &testUnsolicitedFulfill, 0}
 };
 
 #define N_ELEMENTS(ary)  (sizeof (ary) / sizeof (ary[0]))

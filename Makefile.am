@@ -82,6 +82,7 @@ UNITTESTS += testMultipleRequests
 UNITTESTS += testClientTermination
 UNITTESTS += testIoErrors
 UNITTESTS += testDumpDebug
+UNITTESTS += testUnsolicitedFulfill
 
 $(UNITTESTS): test_main
 	@ echo Creating $@
