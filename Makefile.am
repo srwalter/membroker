@@ -6,6 +6,8 @@ lib_LTLIBRARIES =
 noinst_LTLIBRARIES =
 pkgconfig_DATA =
 
+AM_CFLAGS = -Wall -Wextra -Werror
+
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA += membroker.pc
 pkgconfig_DATA += membrokerserver.pc
@@ -62,7 +64,7 @@ mbtest_LDADD = libmembroker.la
 
 noinst_PROGRAMS += test_main
 test_main_SOURCES = src/tests/main.c
-test_main_CFLAGS = -I$(srcdir)/src
+test_main_CFLAGS = -I$(srcdir)/src $(AM_CFLAGS)
 test_main_LDADD = libmembroker.la libmbs.la
 test_main_LDFLAGS = -lpthread
 UNITTESTS =
