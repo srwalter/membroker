@@ -1307,6 +1307,8 @@ int testUnsolicitedFulfill()
     terminateTestClient(source);
     terminateTestClient(bidi1);
     terminateTestClient(bidi2);
+
+    return 0;
 }
 
 static TestLookup testTable[] = {
