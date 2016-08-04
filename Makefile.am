@@ -12,7 +12,10 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA += membroker.pc
 pkgconfig_DATA += membrokerserver.pc
 
+if HAVE_SYSTEMD
+AM_CFLAGS = -DHAVE_SYSTEMD=1
 systemdsystemunit_DATA = src/membroker.service src/membroker.socket
+endif
 
 lib_LTLIBRARIES += libmembroker.la
 libmembroker_la_SOURCES = \
@@ -35,7 +38,8 @@ bin_PROGRAMS += mbserver
 mbserver_SOURCES = \
 	src/main.c \
 	src/mbserver.h
-mbserver_LDADD = libmbs.la libmembroker.la
+mbserver_CPPFLAGS = $(LIBSYSTEMD_CFLAGS)
+mbserver_LDADD = libmbs.la libmembroker.la $(LIBSYSTEMD_LIBS)
 
 bin_PROGRAMS += mbutil
 mbutil_SOURCES = src/mbutil.c

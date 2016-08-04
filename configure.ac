@@ -12,13 +12,12 @@ AM_PROG_CC_C_O
 
 # systemd
 PKG_PROG_PKG_CONFIG
-AC_ARG_WITH([systemdsystemunitdir],
-            AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files]),
-            [], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
-if test "x$with_systemdsystemunitdir" != xno; then
-AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
-fi
-AM_CONDITIONAL(HAVE_SYSTEMD, [test -n "$with_systemdsystemunitdir" -a "x$with_systemdsystemunitdir" != xno])
+PKG_CHECK_MODULES(LIBSYSTEMD, libsystemd-daemon,
+                  [AM_CONDITIONAL(HAVE_SYSTEMD, [true])],
+                  [AM_CONDITIONAL(HAVE_SYSTEMD, [false])])
+AM_COND_IF([HAVE_SYSTEMD],
+           [AC_SUBST([systemdsystemunitdir],
+                     [$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])])
 
 # Checks for libraries.
 AC_CHECK_LIB(pthread, pthread_create)

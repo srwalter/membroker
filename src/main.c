@@ -261,7 +261,7 @@ int main(int argc, char ** argv)
     free (optstring);
 
 #if HAVE_SYSTEMD
-    if (sd_listen_fds (true) > 0) {
+    if (sd_listen_fds (1) > 0) {
         /* there should be exactly 1 fd waiting for us. */
 	server = mbs_init_with_fd (SD_LISTEN_FDS_START);
     } else
