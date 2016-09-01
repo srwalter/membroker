@@ -13,7 +13,7 @@ pkgconfig_DATA += membroker.pc
 pkgconfig_DATA += membrokerserver.pc
 
 if HAVE_SYSTEMD
-AM_CFLAGS = -DHAVE_SYSTEMD=1
+AM_CFLAGS += -DHAVE_SYSTEMD=1
 systemdsystemunit_DATA = src/membroker.service src/membroker.socket
 endif
 
