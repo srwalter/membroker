@@ -136,6 +136,7 @@ get_kernel_mem_total (void)
     rc = sysinfo(&si);
     assert(rc == 0);
     kmem_bytes = si.totalram * si.mem_unit;
+    kmem_bytes += si.totalswap * si.mem_unit;
 
     return kmem_bytes / 1024;
 }
