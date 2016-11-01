@@ -6,7 +6,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#include <assert.h>
 #include <sys/param.h>
+#include <sys/sysinfo.h>
 #include "mbserver.h"
 
 #if HAVE_SYSTEMD
@@ -127,59 +129,15 @@ parse_memsize (const char * arg)
 static unsigned long
 get_kernel_mem_total (void)
 {
-    char buf[1024];
-    char *valp;
-    char *endptr;
-    FILE *fp;
-    int cnt;
-    unsigned long kmem_kb;
+    unsigned long long kmem_bytes;
+    struct sysinfo si;
+    int rc;
 
-    fp = fopen ("/proc/meminfo", "r");
-    if (NULL == fp)
-        goto out_error;
-    cnt = fread (buf, 1, sizeof (buf) - 1, fp);
-    buf[cnt] = '\0';
-    fclose (fp);
+    rc = sysinfo(&si);
+    assert(rc == 0);
+    kmem_bytes = si.totalram * si.mem_unit;
 
-    /* We're looking for a line that should have the form
-     *
-     *      MemTotal:      1234567 kB
-     */
-
-    valp = strstr (buf, "MemTotal: ");
-    if (NULL == valp)
-        goto out_error;
-
-    /* Skip past "MemTotal: " */
-    valp += strlen ("MemTotal: ");
-
-    /* Turn newline into end of string, if found */
-    endptr = strchr (valp, '\n');
-    if (endptr)
-        *endptr = '\0';
-
-    /* Now convert. */
-    endptr = NULL;
-    errno = 0;
-    kmem_kb = strtoul (valp, &endptr, 0);
-
-    /* Lots of error checking... */
-    if (0 == kmem_kb && 0 != errno)
-        goto out_error;
-    if (endptr == valp)
-        goto out_error;
-    while (*endptr && isspace (*endptr))
-        endptr++;
-    if (0 != strcmp (endptr, "kB")) {
-        printf ("Unexpected units in MemTotal: %s\n", endptr);
-        goto out_error;
-    }
-
-    return kmem_kb;
-
-out_error:
-    fprintf (stderr, "Cannot read MemTotal from /proc/meminfo\n");
-    return (unsigned long) -1;
+    return kmem_bytes / 1024;
 }
 
 static double
