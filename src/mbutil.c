@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/param.h>
 #include <unistd.h>
 
 static const char * progname;
@@ -13,7 +12,7 @@ static const char * progname;
 static inline double
 pages_to_megabytes (int pages)
 {
-	return (((long long) pages) * EXEC_PAGESIZE) / (1024.0 * 1024.0);
+	return (((long long) pages) * getpagesize()) / (1024.0 * 1024.0);
 }
 
 static const char *
@@ -207,7 +206,7 @@ parse_n_pages (const char * arg)
 		case 'k':
 		case 'K':
 			d *= 1024;
-			n_pages = (int) (d / EXEC_PAGESIZE);
+			n_pages = (int) (d / getpagesize());
 			break;
 
                 case '%': /* percent of total */

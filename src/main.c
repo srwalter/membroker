@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <assert.h>
 #include <sys/param.h>
+#include <unistd.h>
 #include <sys/sysinfo.h>
 #include "mbserver.h"
 
@@ -98,10 +99,10 @@ parse_memsize (const char * arg)
         return -1;
 
     case 'G':
-        multiplier = (1024 * 1024 * 1024) / EXEC_PAGESIZE;
+        multiplier = (1024 * 1024 * 1024) / getpagesize();
         break;
     case 'M':
-        multiplier = (1024 * 1024) / EXEC_PAGESIZE;
+        multiplier = (1024 * 1024) / getpagesize();
         break;
     case 'p':
         multiplier = 1;
@@ -144,7 +145,7 @@ get_kernel_mem_total (void)
 static double
 pages_to_gb (int pages)
 {
-    return pages * (EXEC_PAGESIZE / 1024.0 / 1024.0 / 1024.0);
+    return pages * (getpagesize() / 1024.0 / 1024.0 / 1024.0);
 }
 
 static int
@@ -162,7 +163,7 @@ calc_all_pages_except (const char * arg)
     if (kmem_kb == (unsigned long) -1)
         return -1;
 
-    kmem_pages = (int) (((long long) kmem_kb) * 1024 / EXEC_PAGESIZE);
+    kmem_pages = (int) (((long long) kmem_kb) * 1024 / getpagesize());
 
     printf ("MemTotal: %lu kB -> %d p  -> %.3f G\n", kmem_kb, kmem_pages,
             pages_to_gb (kmem_pages));

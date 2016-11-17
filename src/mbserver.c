@@ -33,7 +33,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/param.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -474,8 +473,6 @@ get_cmdline_for (pid_t pid)
         }
     }
 
-    assert (buffer);
-
     return strdup (buffer);
 }
 
@@ -824,7 +821,7 @@ initialize_server()
 
     if (env) {
         server->source_pages =
-            server->pages = atoi (env) / EXEC_PAGESIZE;
+            server->pages = atoi (env) / getpagesize();
 
         fprintf (server->fp, "Initialized membroker with %d pages (from %s)\n", server->pages, env);
     }
@@ -835,7 +832,7 @@ initialize_server()
 static double
 pages_to_megabytes (int pages)
 {
-    return ((double) pages) * EXEC_PAGESIZE / 1024 / 1024;
+    return ((double) pages) * getpagesize() / 1024 / 1024;
 }
 
 static void
