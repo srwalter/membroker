@@ -12,7 +12,7 @@ AM_PROG_CC_C_O
 
 # systemd
 PKG_PROG_PKG_CONFIG
-PKG_CHECK_MODULES(LIBSYSTEMD, libsystemd-daemon,
+PKG_CHECK_MODULES(LIBSYSTEMD, libsystemd,
                   [AM_CONDITIONAL(HAVE_SYSTEMD, [true])],
                   [AM_CONDITIONAL(HAVE_SYSTEMD, [false])])
 AM_COND_IF([HAVE_SYSTEMD],
