@@ -10,12 +10,6 @@ AM_CFLAGS = -Wall -Wextra -Werror
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA += membroker.pc
-pkgconfig_DATA += membrokerserver.pc
-
-if HAVE_SYSTEMD
-AM_CFLAGS += -DHAVE_SYSTEMD=1
-systemdsystemunit_DATA = src/membroker.service src/membroker.socket
-endif
 
 lib_LTLIBRARIES += libmembroker.la
 libmembroker_la_SOURCES = \
@@ -27,8 +21,15 @@ libmembroker_la_SOURCES = \
 
 pkginclude_HEADERS = \
 	src/mb.h \
-	src/mbclient.h \
-	src/mbserver.h
+	src/mbclient.h
+
+if HAVE_SERVER
+if HAVE_SYSTEMD
+AM_CFLAGS += -DHAVE_SYSTEMD=1
+systemdsystemunit_DATA = src/membroker.service src/membroker.socket
+endif
+pkgconfig_DATA += membrokerserver.pc
+pkginclude_HEADERS += src/mbserver.h
 
 lib_LTLIBRARIES += libmbs.la
 libmbs_la_SOURCES = src/mbserver.c
@@ -96,3 +97,4 @@ $(UNITTESTS): test_main
 	$Q chmod +x $@
 CLEANFILES = $(UNITTESTS)
 TESTS += $(UNITTESTS)
+endif
