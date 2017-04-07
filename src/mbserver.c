@@ -53,9 +53,7 @@
 #else
 #define MB_GET_TIME(t) { time(&((t)->tv_sec)); t->tv_nsec=0; }
 #endif
-#define LOGFILE 0
-
-static const char * const logfile = "mbserver.log";
+//#define LOGFILE "mbserver.log"
 
 typedef enum {
     NORMAL = 0,
@@ -812,8 +810,8 @@ initialize_server()
         exit (1);
     }
 
-#if LOGFILE
-    server->fp = fopen(logfile, "w");
+#ifdef LOGFILE
+    server->fp = fopen(LOGFILE, "w");
 #else
     server->fp = stdout;
 #endif
@@ -1185,7 +1183,7 @@ mbs_main(void* param)
         if (server->shutdown) {
             close(server->client_listen_fd);
             unlink(&(server->sock.sun_path[0]));
-#if LOGFILE
+#ifdef LOGFILE
             fclose(server->fp);
 #endif
             break;

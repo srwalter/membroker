@@ -10,11 +10,18 @@ LT_INIT
 AC_PROG_CC
 AM_PROG_CC_C_O
 
-# systemd
-PKG_PROG_PKG_CONFIG
-PKG_CHECK_MODULES(LIBSYSTEMD, libsystemd-daemon,
-                  [AM_CONDITIONAL(HAVE_SYSTEMD, [true])],
-                  [AM_CONDITIONAL(HAVE_SYSTEMD, [false])])
+AC_ARG_ENABLE(server, AS_HELP_STRING([--disable-server], [build client library only]))
+AS_IF([test "x$enable_server" != "xno"], [
+       AM_CONDITIONAL(HAVE_SERVER, [true])
+       # systemd
+       PKG_PROG_PKG_CONFIG
+       PKG_CHECK_MODULES(LIBSYSTEMD, libsystemd,
+                         [AM_CONDITIONAL(HAVE_SYSTEMD, [true])],
+                         [AM_CONDITIONAL(HAVE_SYSTEMD, [false])])
+       ], [
+       AM_CONDITIONAL(HAVE_SERVER, [false])
+       AM_CONDITIONAL(HAVE_SYSTEMD, [false])
+       ])
 AM_COND_IF([HAVE_SYSTEMD],
            [AC_SUBST([systemdsystemunitdir],
                      [$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])])
