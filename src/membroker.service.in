@@ -13,5 +13,5 @@ After=memory-tuning.service
 UMask=0
 # Needed for LXK_RUNTIME_DIR environment variable
 EnvironmentFile=/etc/dirs_environment
-
+User=nobody
 ExecStart=@bindir@/membroker
