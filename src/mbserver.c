@@ -118,6 +118,7 @@ struct clientNode
 typedef struct clientNode ClientNode;
 
 struct request {
+    int requested_pages; /* for logging, the original request amount */
     int needed_pages;
     int acquired_pages;
     Client * requesting_client;
@@ -637,6 +638,7 @@ add_request (Server * server, Client * client, int pages, MbCodes op)
         perror("add_request(): malloc");
         exit (10);
     }
+    request->requested_pages = pages;
     request->needed_pages = (unsigned)pages;
     request->acquired_pages = 0;
     request->requesting_client = client;
@@ -695,7 +697,7 @@ process_request_queue (Server * server)
                          request->requesting_client->id,
                          request->requesting_client->cmdline,
                          request->acquired_pages,
-                         request->acquired_pages + request->needed_pages,
+                         request->requested_pages,
                          request->type==RESERVE ? "reserved" : "requested",
                          request->requesting_client->pages + request->acquired_pages,
                          now.tv_sec, now.tv_nsec);
