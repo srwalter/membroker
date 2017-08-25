@@ -18,8 +18,9 @@ pages_to_megabytes (int pages)
 static const char *
 mb_error_to_string (MbError error)
 {
-	if (error & MB_BAD_PAGES)
-		error &= ~MB_BAD_PAGES;
+	if (error < MB_LAST_ERROR_CODE) {
+		error -= MB_BAD_PAGES;
+	}
 
 	switch (error) {
 	case MB_SUCCESS:		return "Success";
