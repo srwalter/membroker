@@ -31,6 +31,7 @@
 #include <fcntl.h>
 #include <malloc.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/select.h>
@@ -117,6 +118,7 @@ struct clientNode
 typedef struct clientNode ClientNode;
 
 struct request {
+    int requested_pages; /* for logging, the original request amount */
     int needed_pages;
     int acquired_pages;
     Client * requesting_client;
@@ -145,6 +147,7 @@ struct server{
     Request * queue;
     int updates;
     FILE * fp;
+    bool verbose;
 
     struct sockaddr_un debug_sock;
     int debug_listen_fd;
@@ -382,9 +385,16 @@ request_pages (Server * server)
                                     client->share_type, 
                                     client->needed_pages) == 0 ) {
 
-                fprintf (server->fp, "mbserver: %s %d pages from %s (%d)\n", 
-                         client->share_type==REQUEST?"request":"reserve",
-                         client->needed_pages, client->cmdline, client->id);
+                if (server->verbose) {
+                    /* This is useful if you're trying to track down or catch
+                     * in the act a client that doesn't respond.  However, you
+                     * can find outstanding requests in server status, and the
+                     * results are more important.  So, be less chatty by
+                     * default. */
+                    fprintf (server->fp, "mbserver: %s %d pages from %s (%d)\n",
+                             client->share_type==REQUEST?"request":"reserve",
+                             client->needed_pages, client->cmdline, client->id);
+                }
             } 
             else
             {
@@ -628,6 +638,7 @@ add_request (Server * server, Client * client, int pages, MbCodes op)
         perror("add_request(): malloc");
         exit (10);
     }
+    request->requested_pages = pages;
     request->needed_pages = (unsigned)pages;
     request->acquired_pages = 0;
     request->requesting_client = client;
@@ -676,15 +687,24 @@ process_request_queue (Server * server)
                                     request->requesting_client->fd, 
                                     SHARE , request->acquired_pages ) == 0)
             {
-                fprintf (server->fp, "mbserver: processed client (%d)-\"%s\"  - %d of %d pages in %ld.%09ld sec.\n",
+                /* Squeeze as much info into the transaction summary as
+                 * possible.  Since history may be lost, show the current
+                 * client state at the end of the transaction. */
+                /* Keep this in sync with the message logged when we
+                 * handle an immediate request in process_connection() */
+                fprintf (server->fp,
+                         "mbserver: (%d)-\"%s\" - got %d of %d %s pages, current %dp [%ld.%09lds]\n",
                          request->requesting_client->id,
                          request->requesting_client->cmdline,
-                         request->acquired_pages, 
-                         request->acquired_pages + request->needed_pages,
+                         request->acquired_pages,
+                         request->requested_pages,
+                         request->type==RESERVE ? "reserved" : "requested",
+                         request->requesting_client->pages + request->acquired_pages,
                          now.tv_sec, now.tv_nsec);
-                
+
                 request->requesting_client->pages += request->acquired_pages;
                 request->acquired_pages = 0;
+
             } else {
                 fprintf (server->fp, "mbserver: %s: encode_and_send %d pages to (%d)-\"%s\" failed\n", __func__, request->acquired_pages, request->requesting_client->id, request->requesting_client->cmdline);
             }
@@ -762,7 +782,8 @@ return_shared_pages (Server * server)
             if (is_source(iter) && iter->pages < 0) {
                 int pages = min(server->pages, -iter->pages);
                 mb_encode_and_send (iter->id, iter->fd, RETURN, pages);  
-                fprintf (server->fp, "mbserver: return %d pages to (%d)-\"%s\"\n", pages, iter->id, iter->cmdline);
+                fprintf (server->fp, "mbserver: return %d pages to (%d)-\"%s\", current %dp\n",
+                         pages, iter->id, iter->cmdline, iter->pages + pages);
                 server->pages -= pages;
                 iter->pages += pages;
             }
@@ -822,6 +843,11 @@ initialize_server()
             server->pages = atoi (env) / getpagesize();
 
         fprintf (server->fp, "Initialized membroker with %d pages (from %s)\n", server->pages, env);
+    }
+
+    env = getenv ("VERBOSE");
+    if (env) {
+        server->verbose = (bool) atoi (env);
     }
 
     return server;
@@ -967,15 +993,19 @@ process_connection(Server * server, int fd)
                     server->pages -= val;
                     client->pages += val;
                     mb_encode_and_send (id, fd, SHARE, val);
-                    fprintf (server->fp, "Immediate Request processed: %s (%d) - SHARE %d\n",
-                             client->cmdline, client->id, val);
+                    /* Keep this in sync with the message logged when we
+                     * finish a request in process_request_queue() */
+                    fprintf (server->fp,
+                         "mbserver: (%d)-\"%s\" - got %d of %d %s pages, current %dp [immediate]\n",
+                         client->id, client->cmdline,
+                         val, val, op==RESERVE ? "reserved" : "requested",
+                         client->pages);
                 } else {
                     add_request (server, client, val, (MbCodes)op);
                     update_server(server);
                 }
                 break;
             case RETURN:
-                fprintf (server->fp, "mbserver: Pages Returned: %d\n", val);
                 if (client->source_pages + client->pages < val ){
                     printf ("mbserver: (%d)-\"%s\" returns %d pages, but has %d\n", 
                             client->id, client->cmdline, val,
@@ -985,14 +1015,33 @@ process_connection(Server * server, int fd)
                 client->pages -= val;
                 give_server_pages(server, val);
                 update_server(server);
+                fprintf (server->fp, "mbserver: (%d)-\"%s\" returned %d pages, current %dp\n",
+                         client->id, client->cmdline, val, client->pages);
                 break;
             case SHARE:
-                fprintf (server->fp, "mbserver: Pages Shared: %d\n", val);
-
                 if (!is_bidirectional(client)){
-                    printf ("mbserver: %d-\"%s\" shares %d pages, but is not bidirectional\n", client->id, client->cmdline,
+                    printf ("mbserver: (%d)-\"%s\" shares %d pages, but is not bidirectional\n", client->id, client->cmdline,
                             val);
                     exit(20);
+                }
+                /* If there's an active request, we want to know who shared
+                 * memory for it.  To reduce log chatter, we don't bother
+                 * recording when clients have nothing to give.  We also
+                 * log when we a share with no requests active. */
+                if (val > 0 || server->queue == NULL || server->verbose) {
+                    const char * type;
+                    if (client->share_type == REQUEST)
+                        type = "requested";
+                    else if (client->share_type == RESERVE)
+                        type = "reserved";
+                    else
+                        type = "unsolicited";
+
+                    fprintf (server->fp,
+                             "mbserver: (%d)-\"%s\" shared %d of %d %s pages, current %dp\n",
+                             client->id, client->cmdline, val,
+                             client->needed_pages, type,
+                             client->pages - val);
                 }
                 client->pages -= val;
                 process_solicited_pages(server, client, val);
@@ -1000,7 +1049,8 @@ process_connection(Server * server, int fd)
                 break;
 
             case TERMINATE:
-                fprintf (server->fp, "mbserver: client (%d)-\"%s\" terminated, reclaimed %d pages\n", client->id, client->cmdline, client->pages);
+                fprintf (server->fp, "mbserver: client (%d)-\"%s\" terminated, reclaimed %d pages\n",
+                         client->id, client->cmdline, client->pages);
 		mb_encode_and_send (id, fd, TERMINATE, 0);
                 free_client (server, client);
                 update_server(server);
@@ -1227,7 +1277,9 @@ mbs_main(void* param)
                     if (-1 == process_connection (server, i)){
                         Client * client = get_client_by_fd (server, i);
                         if (client) {
-                            fprintf (server->fp, "non terminus close - (%d)-\"%s\"\n", client->id, client->cmdline);
+                            fprintf (server->fp,
+                                     "mbserver: non terminus close - (%d)-\"%s\", reclaiming %d pages\n",
+                                     client->id, client->cmdline, client->pages);
                             free_client (server, client);
                             update_server(server);
                         }

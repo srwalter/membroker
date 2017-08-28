@@ -96,12 +96,7 @@ MbClientHandle mb_client_register_source(int id, int pages);
  *                accept asynchronous, unsolicited requests initiated by 
  *                membroker) or zero if it is a normal synchronous client.
  *
- * @return a handle (pointer) to the membroker client, or NULL if there was an
- *         error establishing the connection, or a client has already been
- *         registered in this process using a different set of parameters.
- *         If a client has already been registered in this process with all the
- *         same parameters, this function will return a reference to that
- *         client rather than establish a new one. 
+ * @return MB_SUCCESS if all is well, or an appropriate MbError value.
  */
 int mb_register(int is_bidi);
 
@@ -112,12 +107,7 @@ int mb_register(int is_bidi);
  * @param pages the maximum number of pages of memory that this client can loan
  *              to membroker
  *
- * @return a handle (pointer) to the membroker client, or NULL if there was an
- *         error establishing the connection, or a client has already been
- *         registered in this process using a different set of parameters.
- *         If a client has already been registered in this process with all the
- *         same parameters, this function will return a reference to that
- *         client rather than establish a new one. 
+ * @return MB_SUCCESS is all is well, or an appropriate MbError value.
  */
 int mb_register_source(int pages);
 
